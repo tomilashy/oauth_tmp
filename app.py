@@ -6,6 +6,7 @@ from authlib.jose import jwt
 from starlette.responses import JSONResponse
 from starlette.requests import Request
 import time
+import os
 
 app = FastAPI()
 
@@ -20,7 +21,7 @@ clients = {
 }
 
 # JWT signing key (use a real secret or asymmetric key in prod)
-JWT_SECRET = "your-super-secret-key"
+JWT_SECRET = JWT_SECRET = os.getenv("JWT_SECRET", "replace-this-in-prod")
 JWT_ALG = "HS256"
 
 
