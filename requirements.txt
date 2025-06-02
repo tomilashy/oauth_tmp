@@ -2,3 +2,4 @@ fastapi
 uvicorn[standard]
 authlib
 python-dotenv
+python-multipart
