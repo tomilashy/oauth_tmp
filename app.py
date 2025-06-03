@@ -16,11 +16,13 @@ from cryptography.hazmat.primitives import hashes
 app = FastAPI()
 
 # In-memory client "database"
+FHIR_USER_URL = os.getenv("FHIR_USER_URL", "https://test.fhir.com/Practitioner/123")
+
 clients = {
     "m2m-client": {
         "client_secret": "m2m-secret",
-        "scopes": "user/*.read user/*.write",
-        "fhirUser": "Practitioner/123",
+        "scopes": "user/*.read patient/*.read",
+        "fhirUser": FHIR_USER_URL,  # from ENV
         "azp": "emr-backend",
         "name": "Machine Client",
         "email": "machine@example.com",
@@ -28,8 +30,8 @@ clients = {
     },
     "m2m-hs256": {
         "client_secret": "m2m-hs256-secret",
-        "scopes": "user/*.read user/*.write",
-        "fhirUser": "Practitioner/456",
+        "scopes": "user/*.read  patient/*.read ",
+        "fhirUser": FHIR_USER_URL,  # from ENV
         "azp": "emr-backend",
         "name": "RS256 Client",
         "email": "rs256@example.com",
