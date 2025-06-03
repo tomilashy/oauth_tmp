@@ -10,6 +10,8 @@ import time
 import logging
 from cryptography.hazmat.primitives.asymmetric import rsa
 import json
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes
 
 app = FastAPI()
 
@@ -108,18 +110,52 @@ RS256_PUBLIC_KEY = load_public_key()
 
 def get_jwk_from_public_key(pubkey):
     from cryptography.hazmat.primitives.asymmetric import rsa
+    import base64
+    import hashlib
+
     if not isinstance(pubkey, rsa.RSAPublicKey):
         return None
     numbers = pubkey.public_numbers()
-    import base64
     def b64(x): return base64.urlsafe_b64encode(x).rstrip(b'=').decode('utf-8')
+
+    # Generate or load a self-signed cert for x5c/x5t
+    cert_path = "/tmp/auto_public_cert.pem"
+    if os.path.exists(cert_path):
+        with open(cert_path, "rb") as f:
+            cert_pem = f.read()
+        cert = x509.load_pem_x509_certificate(cert_pem, default_backend())
+    else:
+        from datetime import datetime, timedelta
+        subject = issuer = x509.Name([
+            x509.NameAttribute(x509.NameOID.COMMON_NAME, u"Demo RS256 Key"),
+        ])
+        cert = (
+            x509.CertificateBuilder()
+            .subject_name(subject)
+            .issuer_name(issuer)
+            .public_key(pubkey)
+            .serial_number(x509.random_serial_number())
+            .not_valid_before(datetime.utcnow())
+            .not_valid_after(datetime.utcnow() + timedelta(days=3650))
+            .sign(RS256_PRIVATE_KEY, hashes.SHA256(), default_backend())
+        )
+        with open(cert_path, "wb") as f:
+            f.write(cert.public_bytes(serialization.Encoding.PEM))
+
+    cert_der = cert.public_bytes(serialization.Encoding.DER)
+    x5c = [base64.b64encode(cert_der).decode("utf-8")]
+    x5t = base64.urlsafe_b64encode(hashlib.sha1(cert_der).digest()).rstrip(b'=').decode("utf-8")
+    kid = x5t
+
     return {
         "kty": "RSA",
         "alg": "RS256",
         "use": "sig",
         "n": b64(numbers.n.to_bytes((numbers.n.bit_length() + 7) // 8, 'big')),
         "e": b64(numbers.e.to_bytes((numbers.e.bit_length() + 7) // 8, 'big')),
-        "kid": "rs256-key"
+        "kid": kid,
+        "x5t": x5t,
+        "x5c": x5c
     }
 
 
